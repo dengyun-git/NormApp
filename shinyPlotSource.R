@@ -620,8 +620,8 @@ TotalProCheck <- function(exprDat_norm,bloodStain,metadata_reord){
   text(1,max(totalProtein_norm)*0.9,paste("p =",formatC(cor.test(totalProtein_norm, as.numeric(bloodStain))$p.val,format="e",digits=3)),pos=4,col="red")
   text(1,max(totalProtein_norm)*0.8,paste("cor =",formatC(cor.test(totalProtein_norm, as.numeric(bloodStain))$estimate,format="e",digits=3)),pos=4,col="red")
   boxplot(totalProtein_norm ~ metadata_reord$Group,main=paste("p =",wilcox.test(log(totalProtein_norm) ~ metadata_reord$Group)$p.val),xlab="disease group",ylab="total protein within group")
-  
-  return(totalProtein_norm)
+  myplot <- recordPlot()
+  return(myplot)
 }
 
 ##2: Checks against calibrators. Input selected RFUs calib_norm, and clinicalType ("OA" or "INJ")
@@ -643,6 +643,8 @@ CalibratorCheckPlot <- function(calib_norm,calibIDs){
   ptINJ <- CalibratorCheck(calib_norm,"INJ",calibIDs)
   ptOA
   ptINJ
+  myplot <- recordPlot()
+  return(myplot)
 }
 
 ##CV breakdowns:
@@ -694,6 +696,8 @@ CVbreakPlot <- function(calib_norm,calibIDs,calibPlates){
   par(mfrow=c(2,2))
   CVbreak(calib_norm,"OA",calibIDs,calibPlates)
   CVbreak(calib_norm,"INJ",calibIDs,calibPlates)
+  myplot<-recordPlot()
+  return(myplot)
 }
 
 #Check 3: PCA
@@ -780,7 +784,9 @@ confounderPlot2 = function(ConfounderTableX){
     qqplot(-log10(seq(0,1,length.out=length(temp))),-log10(temp),xlab="Expected -log10(p)",ylab="Observed -log10(p)",main=paste(confounder[ccounter]," QQplot"),cex.main=0.8,cex.lab=0.8)
     abline(0,1)
   }
-  return()
+  
+  myplot <- recordPlot()
+  return(myplot)
 }
 
 
@@ -985,7 +991,9 @@ LoDdetection <- function(RawM){
   hist(-log(ProteinRatio),main="(-log)RFUs below LoD among proteins",xlab="ratio",breaks=50,cex.main=0.8)
   hist(-log(SampRatio),main="(-log)RFUs below LoD among samples",xlab="ratio",breaks=50,cex.main=0.8)
   
-  return()
+  myplot <- recordPlot()
+  
+  return(myplot)
 }
 
 ### KNN batch effect test

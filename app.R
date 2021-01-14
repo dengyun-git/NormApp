@@ -1,10 +1,3 @@
-clr  = function()
-{
-  rm(list = ls(envir = .GlobalEnv),
-     envir = .GlobalEnv)
-}
-clr()
-
 library(shiny)
 library(shinythemes)
 library(readxl)
@@ -16,7 +9,6 @@ library(cowplot)
 library(SomaDataIO)
 library(moments)
 library(data.table)
-library(DT)
 source("shinyPlotSource.R")
 
 ### initialisation for all the user selected inputs, which are not reactive
@@ -54,10 +46,9 @@ shinyUI <- fluidPage(theme = shinytheme("cerulean"),
                                                        
                                                        mainPanel(h4("Assessment result display"),
                                                                  tabsetPanel(
-                                                                   tabPanel("Plot for Radio Button", plotOutput("ptFinal1",width="100%",height="750px")), 
-                                                                   tabPanel("Plot for Select Box", plotOutput("ptFinal2",width="100%",height="750px")), 
-                                                                   tabPanel("Table", tableOutput("tblFinal"))),
-                                                                 downloadButton("download1")
+                                                                   tabPanel("Plot for Radio Button", plotOutput("ptFinal1",width="100%",height="750px"),downloadButton("downloadPlot1","Download Plot")), 
+                                                                   tabPanel("Plot for Select Box", plotOutput("ptFinal2",width="100%",height="750px"),downloadButton("downloadPlot2","Download Plot")), 
+                                                                   tabPanel("Table", tableOutput("tblFinal"),downloadButton("downloadTable","Download Table")))
                                                        )
                                          )
                                 ),
@@ -91,33 +82,45 @@ shinyServer <- function(input,output){
   ###output plots  
   output$ptFinal1 <- renderPlot({
     
-    if(input$Assessment == "Total Protein"){TotalProCheck(exprDat_norm(),bloodStain(),metadata_reord())}
+    if(input$Assessment == "Total Protein"){myplot1 <- TotalProCheck(exprDat_norm(),bloodStain(),metadata_reord())
+    myplot1}
     
-    if(input$Assessment == "Calibrator Check"){CalibratorCheckPlot(calib_norm(),calibIDs())}
+    if(input$Assessment == "Calibrator Check"){myplot1 <- CalibratorCheckPlot(calib_norm(),calibIDs())
+    myplot1}
     
-    if(input$Assessment =="Coefficient Variance Breakdown"){CVbreakPlot(calib_norm(),calibIDs(),calibPlates())}
+    if(input$Assessment =="Coefficient Variance Breakdown"){myplot1 <- CVbreakPlot(calib_norm(),calibIDs(),calibPlates())
+    myplot1}
     
-    if(input$Assessment == "Limit of Detection"){LoDdetection(RawM)}
+    if(input$Assessment == "Limit of Detection"){myplot1 <- LoDdetection(RawM)
+    myplot1}
     
     if(input$Assessment=="Anova per Protein"){ConfounderTable <- ConfouderCheck(exprDat_norm(),plateID(),metadata_reord(),bloodStain(),sampleAge())
-    confounderPlot2(ConfounderTable)}
+    myplot1 <-confounderPlot2(ConfounderTable)
+    myplot1}
   })
   
-  # output$downloadPlot <- downloadHandler(
-  #   filename = function() {paste(input$Assessment, '.png', sep='')},
-  #   content = function(file) {
-  #     device <- function(..., width, height) {
-  #       grDevices::png(..., width = width, height = height,
-  #                      res = 300, units = "in")}
-  #     ggsave(file, plot = plotInput(), device = "png")
-  #   }
-  # )
+  output$downloadPlot1 <- downloadHandler(
+    filename = function(){
+      paste(input$Assessment, '.png', sep='')
+    },
+    content = function(file) {
+      png(file)
+      myplot1()
+      dev.off
+    })
   
   output$ptFinal2 <- renderPlot({
-    
     ptPCAfinal <- PCAglob(MetaRaw(),exprDat_norm(),input$PCAx)
     ptPCAfinal
   })
+  
+  output$downloadPlot2 <- downloadHandler(
+    filename = function(){
+      paste(input$Assessment, '.png', sep='')
+    },
+    content = function(file) {
+      ggsave(ptPCAfinal(),filename)
+    })
   
   ###output tables  
   output$tblFinal <- renderTable({
@@ -126,11 +129,23 @@ shinyServer <- function(input,output){
       CorData_norm1 <- ExtVal1(sandwich_master_Ben,exprDat_norm(),toTest1,toTest2,metadata_reord())
       CorData_norm2 <- ExtVal1(sandwich_master_Historic,exprDat_norm(),toTest1,toTest2,metadata_reord())
       CorData = as.table(as.matrix(rbind(CorData_norm1,CorData_norm2)))
-      CorData}
+      myTable <- CorData
+      myTable}
     
     if(input$Assessment == "KNN Batch Effect Test"){BatchEffectM <- KNNtest(exprDat_norm(),MetaRaw())
-    BatchEffectM}
-  },colnames=FALSE)
+    myTable <- BatchEffectM
+    myTable}},colnames=FALSE)
+  
+  output$downloadTable <- downloadHandler(
+    filename = function() { 
+      paste(input$Assessment, '.csv', sep='')},
+    content = function(file) {
+      write.csv(myTable(), file)
+    }
+  )
+  
+  
 }
+
 
 shinyApp(ui = shinyUI, server = shinyServer)
