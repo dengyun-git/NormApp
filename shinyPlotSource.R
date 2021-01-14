@@ -1,4 +1,5 @@
 setReactiveMySoma <- function(UserInput,RawM){
+  
   userSt = strsplit(UserInput,",")[[1]]
   if(userSt =="RawM"){MySoma = RawM}
   else{
@@ -8,6 +9,7 @@ setReactiveMySoma <- function(UserInput,RawM){
       Funlist[[counterStep]] = get(userSt[counterStep])
     }
     MySoma = UserNorm(Funlist,RawM)}
+  
   return(MySoma)
 }
 

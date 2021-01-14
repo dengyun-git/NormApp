@@ -25,7 +25,7 @@ inputfile2 <- "/Users/ydeng/Documents/QCstepOA/SS-200008.hybNorm.medNormInt.plat
 inputfile3 <- "/Users/ydeng/Documents/QCstepOA/STEpUP_QCData_Tranche1.xlsx"
 inputfile4 <- "/Users/ydeng/Documents/QCstepOA/1_Master list_analyte concentrations.xlsx"
 
-RawM <- initQCnorm(inputfile1,inputfile2) ###raw RFUs from Adat, ajust SampleType according to tranch Excel
+RawM <- initQCnorm(inputfile1,inputfile2) ###raw RFUs from Adat, adjust SampleType according to tranch Excel
 RawMList = ExtractClinicG(RawM) ### adjust columns for our own case
 RawM = RawMList[[1]]
 MetaRawM = RawMList[[2]]
@@ -58,92 +58,77 @@ shinyUI <- fluidPage(theme = shinytheme("cerulean"),
                                                                    tabPanel("Plot for Select Box", plotOutput("ptFinal2",width="100%",height="750px")), 
                                                                    tabPanel("Table", tableOutput("tblFinal"))),
                                                                  downloadButton("download1")
-                                                                 )
                                                        )
-                                         ),
-                                tabPanel("User Guide")
+                                         )
+                                ),
+                                tabPanel("User Guide", h4("Data Group Lead by Luke Jostins"))
                      )
 )
-
 
 ###set up server
 options(shiny.maxRequestSize=30*1024^2)
 shinyServer <- function(input,output){
   
   ### define MySoma ect. as reactive variables, save computational cost
+  MySoma <-reactive(setReactiveMySoma(input$norms,RawM))
+  AdatExtract <- reactive(ExtractAdat(MySoma(),MetaRawM))
+  
+  exprDat_norm =  reactive(AdatExtract()[[1]])
+  calib_norm = reactive(AdatExtract()[[2]])
+  plasma_norm = reactive(AdatExtract()[[3]])
+  calibIDs = reactive(AdatExtract()[[4]])
+  calibPlates = reactive(AdatExtract()[[5]])
+  MetaRaw = reactive(AdatExtract()[[6]])
+  
+  TranchExtract <- reactive(ExtractTranch(inputfile3,MySoma()))
+  metadata_reord = reactive(TranchExtract()[[1]])
+  bloodStain = reactive(TranchExtract()[[2]])
+  sampleAge = reactive(TranchExtract()[[3]])
+  patientAge = reactive(TranchExtract()[[4]])
+  plateID = reactive(TranchExtract()[[5]])
+  
   
   ###output plots  
   output$ptFinal1 <- renderPlot({
-    MySoma <- setReactiveMySoma(input$norms,RawM)
-    AdatExtract <- ExtractAdat(MySoma,MetaRawM)
-    exprDat_norm =  AdatExtract[[1]]
-    calib_norm = AdatExtract[[2]]
-    plasma_norm = AdatExtract[[3]]
-    calibIDs = AdatExtract[[4]]
-    calibPlates = AdatExtract[[5]]
-    MetaRaw = AdatExtract[[6]]
-    TranchExtract <- ExtractTranch(inputfile3,MySoma)
-    metadata_reord = TranchExtract[[1]] 
-    bloodStain = TranchExtract[[2]] 
-    sampleAge = TranchExtract[[3]] 
-    patientAge = TranchExtract[[4]] 
-    plateID = TranchExtract[[5]]
     
-    if(input$Assessment == "Total Protein"){TotalProCheck(exprDat_norm,bloodStain,metadata_reord)}
+    if(input$Assessment == "Total Protein"){TotalProCheck(exprDat_norm(),bloodStain(),metadata_reord())}
     
-    if(input$Assessment == "Calibrator Check"){CalibratorCheckPlot(calib_norm,calibIDs)}
+    if(input$Assessment == "Calibrator Check"){CalibratorCheckPlot(calib_norm(),calibIDs())}
     
-    if(input$Assessment =="Coefficient Variance Breakdown"){CVbreakPlot(calib_norm,calibIDs,calibPlates)}
+    if(input$Assessment =="Coefficient Variance Breakdown"){CVbreakPlot(calib_norm(),calibIDs(),calibPlates())}
     
     if(input$Assessment == "Limit of Detection"){LoDdetection(RawM)}
     
-    if(input$Assessment=="Anova per Protein"){ConfounderTable <- ConfouderCheck(exprDat_norm,plateID,metadata_reord,bloodStain,sampleAge)
+    if(input$Assessment=="Anova per Protein"){ConfounderTable <- ConfouderCheck(exprDat_norm(),plateID(),metadata_reord(),bloodStain(),sampleAge())
     confounderPlot2(ConfounderTable)}
   })
   
+  # output$downloadPlot <- downloadHandler(
+  #   filename = function() {paste(input$Assessment, '.png', sep='')},
+  #   content = function(file) {
+  #     device <- function(..., width, height) {
+  #       grDevices::png(..., width = width, height = height,
+  #                      res = 300, units = "in")}
+  #     ggsave(file, plot = plotInput(), device = "png")
+  #   }
+  # )
+  
   output$ptFinal2 <- renderPlot({
-    MySoma <- setReactiveMySoma(input$norms,RawM)
-    AdatExtract <- ExtractAdat(MySoma,MetaRawM)
-    exprDat_norm =  AdatExtract[[1]]
-    calib_norm = AdatExtract[[2]]
-    plasma_norm = AdatExtract[[3]]
-    calibIDs = AdatExtract[[4]]
-    calibPlates = AdatExtract[[5]]
-    MetaRaw = AdatExtract[[6]]
-    TranchExtract <- ExtractTranch(inputfile3,MySoma)
-    metadata_reord = TranchExtract[[1]] 
-    bloodStain = TranchExtract[[2]] 
-    sampleAge = TranchExtract[[3]] 
-    patientAge = TranchExtract[[4]] 
-    plateID = TranchExtract[[5]]
-    ptPCAfinal <- PCAglob(MetaRaw,exprDat_norm,input$PCAx)
+    
+    ptPCAfinal <- PCAglob(MetaRaw(),exprDat_norm(),input$PCAx)
     ptPCAfinal
   })
   
   ###output tables  
   output$tblFinal <- renderTable({
-    MySoma <- setReactiveMySoma(input$norms,RawM)
-    AdatExtract <- ExtractAdat(MySoma,MetaRawM)
-    exprDat_norm =  AdatExtract[[1]]
-    calib_norm = AdatExtract[[2]]
-    plasma_norm = AdatExtract[[3]]
-    calibIDs = AdatExtract[[4]]
-    calibPlates = AdatExtract[[5]]
-    MetaRaw = AdatExtract[[6]]
-    TranchExtract <- ExtractTranch(inputfile3,MySoma)
-    metadata_reord = TranchExtract[[1]] 
-    bloodStain = TranchExtract[[2]] 
-    sampleAge = TranchExtract[[3]] 
-    patientAge = TranchExtract[[4]] 
-    plateID = TranchExtract[[5]]
     
     if(input$Assessment == "External Validation"){
-      CorData_norm1 <- ExtVal1(sandwich_master_Ben,exprDat_norm,toTest1,toTest2,metadata_reord,"OA")
-      CorData_norm2 <- ExtVal1(sandwich_master_Historic,exprDat_norm,toTest1,toTest2,metadata_reord,"Knee Injury")
+      CorData_norm1 <- ExtVal1(sandwich_master_Ben,exprDat_norm(),toTest1,toTest2,metadata_reord())
+      CorData_norm2 <- ExtVal1(sandwich_master_Historic,exprDat_norm(),toTest1,toTest2,metadata_reord())
       CorData = as.table(as.matrix(rbind(CorData_norm1,CorData_norm2)))
       CorData}
     
-    if(input$Assessment == "KNN Batch Effect Test"){BatchEffectM <- KNNtest(exprDat_norm,MetaRaw)
+    if(input$Assessment == "KNN Batch Effect Test"){BatchEffectM <- KNNtest(exprDat_norm(),MetaRaw())
     BatchEffectM}
   },colnames=FALSE)
 }
