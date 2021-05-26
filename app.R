@@ -12,10 +12,10 @@ library(data.table)
 source("shinyPlotSource.R")
 
 ### initialisation for all the user selected inputs, which are not reactive
-inputfile1 <- "/Users/ydeng/Documents/QCstepOA/SS-200008.ADat"
-inputfile2 <- "/Users/ydeng/Documents/QCstepOA/SS-200008.hybNorm.medNormInt.plateScale.medNormRefSMP.ADat"   
-inputfile3 <- "/Users/ydeng/Documents/QCstepOA/STEpUP_QCData_Tranche1.xlsx"
-inputfile4 <- "/Users/ydeng/Documents/QCstepOA/1_Master list_analyte concentrations.xlsx"
+#inputfile1 <- "/Users/ydeng/Documents/QCstepOA/SS-200008.ADat"
+#inputfile2 <- "/Users/ydeng/Documents/QCstepOA/SS-200008.hybNorm.medNormInt.plateScale.medNormRefSMP.ADat"   
+#inputfile3 <- "/Users/ydeng/Documents/QCstepOA/STEpUP_QCData_Tranche1.xlsx"
+#inputfile4 <- "/Users/ydeng/Documents/QCstepOA/1_Master list_analyte concentrations.xlsx"
 
 RawM <- initQCnorm(inputfile1,inputfile2) ###raw RFUs from Adat, adjust SampleType according to tranch Excel
 RawMList = ExtractClinicG(RawM) ### adjust columns for our own case
