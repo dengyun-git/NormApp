@@ -520,94 +520,130 @@ UserNorm <- function(Funlist,RawM){
 }
 
 
-### compare correlation coefficiency among two RFUs
-CompTWO <- function(SomaM,MySoma){
+### function "CompTWO": conveniently compare any two Somalogic RFU matrix with the same dimensions. SomaM and MySoma are any two RUFs, with same dimensions. 
+### output non matching rownames and colnames, and also use corThresh to set below which correlation coefficient, the protein names will be displayed. 
+
+CompTWO <- function(SomaM,MySoma,corThresh){
   
-  DatStartId1 <- which(colnames(SomaM)=="NormScale_0_5")+1
-  DatStartId2 <- which(colnames(MySoma)=="CLI")+1
+  DatStartId1 <- which(colnames(SomaM)=="CRYBB2.10000.28")
+  DatStartId2 <- which(colnames(MySoma)=="CRYBB2.10000.28")
   
   rowOrderName = rownames(SomaM)
   rowOrder = vector(mode="numeric",length=nrow(SomaM))
+  rowKK=1
+  notMatchRow=vector() ### rowKK, notMatchRow: extend code compatibility, when there are none matching records
   for (j in 1:nrow(SomaM)){
-    rowOrder[j] = which(rownames(MySoma) %in% rowOrderName[j])
+    if(!any(rownames(MySoma)==rowOrderName[j])){notMatchRow[rowKK]=j
+    rowKK=rowKK+1}
+    else{rowOrder[j] = which(rownames(MySoma) %in% rowOrderName[j])}
   }
+  print(paste("row name not match: ",rowOrderName[notMatchRow]))
   
   colOrderName = colnames(SomaM)[DatStartId1:ncol(SomaM)]
   colOrder = vector(mode="numeric",length=length(colOrderName))
+  colKK=1
+  notMatchCol=vector()
   for (k in 1:length(colOrder)){
-    colOrder[k] = which(colnames(MySoma)[DatStartId2:ncol(MySoma)] %in% colOrderName[k])
+    if(!any(colnames(MySoma)[DatStartId2:ncol(MySoma)]==colOrderName[k])){notMatchCol[colKK] = k
+    colKK=colKK+1}
+    else{colOrder[k] = which(colnames(MySoma)[DatStartId2:ncol(MySoma)] %in% colOrderName[k])}
   }
+  print(paste("column name not match in Soma: ",colOrderName[notMatchCol]))
   
-  MySomaDone = MySoma[rowOrder,c(1:DatStartId2-1,colOrder+DatStartId2-1)]
+  # MySomaDone = MySoma[rowOrder,c(1:DatStartId2-1,colOrder+DatStartId2-1)]
+  ### check row names colnames matching between two matrices
+  # all(rownames(MySomaDone)==rownames(SomaM))
+  # all(colnames(MySomaDone)[DatStartId2:ncol(MySomaDone)]==colnames(SomaM)[DatStartId1:ncol(SomaM)])
   
-  corShip = vector(mode = "numeric", length=length(colOrderName)) ### correlation between my calculation and Adat
+  corShip = vector(mode = "numeric", length=length(colOrder)) ### correlation between my calculation and Adat
   for(dd in 1:length(corShip)){
-    corShip[dd] = cor(MySomaDone[dd+DatStartId2-1],SomaM[dd+DatStartId1-1])
+    if(!(dd %in% notMatchCol)){
+      if(length(notMatchRow)!=0){corShip[dd] = cor(MySoma[rowOrder,colOrder[dd]+DatStartId2-1],SomaM[!notMatchRow,dd+DatStartId1-1])}
+      else{corShip[dd] = cor(MySoma[rowOrder,colOrder[dd]+DatStartId2-1],SomaM[,dd+DatStartId1-1])}
+    }
+    else{corShip[dd]=NA}
   }
   
-  plot(corShip)
-  return(corShip)
+  plot(corShip[!is.na(corShip)],ylab="correlation coefficient")
+  print(paste("correlation coefficient between minimum value of ", min(corShip[!is.na(corShip)])," to user selected threshold of",corThresh, " :",colnames(SomaM)[DatStartId1:ncol(SomaM)][which(corShip<corThresh)]))
+  return()
 }
+                       
 
 ### divide RawM into two disease groups, analyse individually.clinicType:"OA"/"Injury"
-ExtractClinicG = function(RawM){
-  metadata_xls <- read_excel("/Users/ydeng/Documents/QCstepOA/STEpUP_QCData_Tranche1.xlsx")
-  temp1 <- data.frame(as.matrix(metadata_xls)[-1,1:17])
-  names(temp1) <- as.matrix(metadata_xls)[1,1:17]
-  metadata <- temp1
-  PlateInfor = metadata$`Plate number`
+ExtractClinicG = function(RawM,inputfile,trancheT){
+  if(trancheT==1){metadata <- read_excel(inputfile,range="A2:Q438",col_names=TRUE)
+  }else{metadata <- read_excel(inputfile,range="A2:O618",col_names=TRUE)}
+  
   CohortInfor = metadata$`Cohort name`
   GroupInfor = metadata$Group
   bloodStainInfor = metadata$`Grading of SF bloodstaining prior to centrifugation  (if known)`
   bloodStainInfor[bloodStainInfor=="-"]<-NA
-  sampleAgeInfor <- 2020 - as.numeric(metadata$`Date of biological sampling`)
   
-  selPatientID = matrix(NA,ncol=1,nrow=nrow(metadata))
-  PlateTRawM = matrix(NA,ncol=1,nrow=nrow(RawM))
-  colnames(PlateTRawM) = "PlateID"
-  GroupTRawM = matrix(NA,ncol=1,nrow=nrow(RawM))
-  colnames(GroupTRawM) = "diseaseGroup"
+  ###sampleAge of tranche2 excel, we need to format: Data->text to column + general   
+  ###01 JAN 2021 = 44197 as our up to date
+  if(trancheT==1){sampleAgeInfor <- 2021 - metadata$`Date of biological sampling`
+  }else{sampleAgeInfor <- floor((44197 - metadata$`Date of biological sampling`)/365)}
+  
+  patientGenderInfor = metadata$`Patient gender`
+  patientAgeInfor = metadata$`Patient age at Baseline SF sample`
+  
+  stepupIDTRaw = matrix(NA,ncol=1,nrow=nrow(metadata))
   CohortTRawM = matrix(NA,ncol=1,nrow=nrow(RawM))
   colnames(CohortTRawM) = "Corhort"
+  GroupTRawM = matrix(NA,ncol=1,nrow=nrow(RawM))
+  colnames(GroupTRawM) = "diseaseGroup"
   bloodStainTRawM = matrix(NA,ncol=1,nrow=nrow(RawM))
   colnames(bloodStainTRawM) = "bloodStain"
-  sampleAgeTRawM = matrix(NA,ncol=1,nrow=nrow(RawM))
-  colnames(sampleAgeTRawM) = "sampleAge"
+  sampleAgeTRaw = matrix(NA,ncol=1,nrow=nrow(RawM))
+  colnames(sampleAgeTRaw) = "sampleAge"
+  patientGenderTRaw = matrix(NA,ncol=1,nrow=nrow(RawM))
+  colnames(patientGenderTRaw) = "patientGender"
+  patientAgeTRaw = matrix(NA,ncol=1,nrow=nrow(RawM))
+  colnames(patientAgeTRaw) = "patientAge"
   
-  STEPupName <- gsub("V1-F","F-V1",metadata$`STEpUP Sample Identification Number (SIN)`)
-  
-  RawM$SampleId[which(RawM$SampleId == "STEP1409F-V1-HT1")] = "STEP1409-F-V1-HT1"
-  
-  for (spCounter in 1:length(selPatientID)){
-    selPatientID = which(RawM$SampleId == STEPupName[spCounter])
-    PlateTRawM[selPatientID]=PlateInfor[spCounter]
-    GroupTRawM[selPatientID]=GroupInfor[spCounter]
-    CohortTRawM[selPatientID] = bloodStainInfor[spCounter]
-    bloodStainTRawM[selPatientID] = bloodStainInfor[spCounter]
-    sampleAgeTRawM[selPatientID] = sampleAgeInfor[spCounter]
+  ### correct the SIN mistakes between clinic excel file and soma file
+  clinicSIN <- metadata$`STEpUP Sample Identification Number (SIN)`
+  ss = matrix(NA,ncol=1,nrow=length(clinicSIN))
+  for (i in 1:length(ss)){
+    hyphC <- length(which(grepl("-",strsplit(clinicSIN[i],"")[[1]])))
+    sss <- strsplit(clinicSIN[i],"-")
+    correct = vector(length =hyphC+1)
+    for(j in 1:(hyphC+1)){
+      if(j==2){correct[2] = sss[[1]][3]
+      }else if(j==3){correct[3]=sss[[1]][2]
+      }else{correct[j]=sss[[1]][j]}
+    }
+    ss[i] <- paste(correct,collapse="-")
   }
+  STEPupName <- ss
   
-  DatStartId <- which(colnames(RawM)=="CLI")+1
-  RawM$SampleType[which(GroupTRawM=="OA")]="OASample"
-  RawM$SampleType[which(GroupTRawM=="Injury")]="INJSample"
+  #special for tranche1 data:  
+  STEPupName[STEPupName == "STEP1409-F-V1-HT1"] <- "STEP1409F-V1-HT1"
   
-  ### up to now integrate disease group type into RawM, RawM$SampleType including Pool type, disease sample type
   
-  # Total protein distribution for OA, INJ individually
-  # histOA = apply(RawM[RawM$SampleType=="OASample",DatStartId:ncol(RawM)],1,sum)
-  # hist(histOA,breaks=100,main=paste("Total protein distribution of OA"),cex.main=1)
-  # histINJ = apply(RawM[RawM$SampleType=="INJSample",DatStartId:ncol(RawM)],1,sum)
-  # hist(histINJ,breaks=100,main=paste("Total protein distribution of Injury"),cex.main=1)
-  # 
-  RawMList = list(mode="vector",length=2)
-  RawMList[[1]] = RawM
-  RawMList[[2]] = cbind(PlateTRawM,GroupTRawM,CohortTRawM,bloodStainTRawM,sampleAgeTRawM)
-  rownames(RawMList[[2]]) <- rownames(RawM)
+  for (spCounter in 1:nrow(metadata)){
+    selPatient = which(RawM$SampleId == STEPupName[spCounter])
+    CohortTRawM[selPatient] = CohortInfor[spCounter]
+    GroupTRawM[selPatient]=GroupInfor[spCounter]
+    bloodStainTRawM[selPatient] = bloodStainInfor[spCounter]
+    sampleAgeTRaw[selPatient] = sampleAgeInfor[spCounter]
+    patientGenderTRaw[selPatient] = patientGenderInfor[spCounter]
+    patientAgeTRaw[selPatient] = patientAgeInfor[spCounter]
+    stepupIDTRaw[selPatient] = STEPupName[spCounter]
+  } ###RawM row order didn't change, just added more information from STEpUP_QCData_Tranche1.xlsx
   
-  return(RawMList) 
+  
+  ### up to here integrate disease group type into RawM, RawM$SampleType including Pool type, disease sample type
+  stepupIDTRaw[stepupIDTRaw == "STEP1409F-V1-HT1"] <- "STEP1409-F-V1-HT1"
+  
+  BioMeta = cbind(RawM$PlateId,stepupIDTRaw,GroupTRawM,CohortTRawM,bloodStainTRawM,sampleAgeTRaw,patientGenderTRaw,patientAgeTRaw)
+  colnames(BioMeta)[1:2] = c("PlateID","STEpUPID")
+  rownames(BioMeta) = rownames(RawM)
+  
+  return(BioMeta) 
 }
-
-
+                       
 ####asssessment
 ##1: Total protein check. Input normalised RFUs dataframe, output plots
 
