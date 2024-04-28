@@ -48,7 +48,7 @@ shinyUI <- fluidPage(theme = shinytheme("cerulean"),
                                                        )
                                          )
                                 ),
-                                tabPanel("User Guide", h4("Data Group Lead by Luke Jostins"))
+                                tabPanel("User Guide", h4("Data Group"))
                      )
 )
 
